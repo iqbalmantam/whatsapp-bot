@@ -12,21 +12,16 @@ SCOPE = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 
 def get_sheets_data():
     try:
-        # Jika file credentials.json ada di folder
         if os.path.exists('credentials.json'):
             creds = ServiceAccountCredentials.from_json_keyfile_name('credentials.json', SCOPE)
         else:
-            # Mengambil dari Environment Variable Render jika diset via teks JSON
             creds_json = os.environ.get("GOOGLE_CREDENTIALS_JSON")
             creds_dict = json.loads(creds_json)
             creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
 
         client = gspread.authorize(creds)
-        
-        # Buka spreadsheet berdasarkan nama file di Google Drive anda
-        sheet = client.open("Manpower_Cost").sheet1  # Mengambil sheet pertama
-        
-        # Ambil semua data dan ubah menjadi DataFrame Pandas
+        # Membuka spreadsheet berdasarkan nama file di Google Drive
+        sheet = client.open("Manpower_Cost").sheet1
         data = sheet.get_all_records()
         df = pd.DataFrame(data)
         return df
@@ -36,7 +31,7 @@ def get_sheets_data():
 
 @app.route('/', methods=['GET'])
 def home():
-    return "Bot WhatsApp Manpower Cost (Secure Google Sheets) Aktif!", 200
+    return "Bot WhatsApp Manpower Cost (Google Sheets) Aktif!", 200
 
 @app.route('/webhook', methods=['POST'])
 def whatsapp_webhook():
@@ -45,17 +40,15 @@ def whatsapp_webhook():
         return jsonify({"status": "error", "message": "Tiada data diterima"}), 400
 
     message = data.get('message', '').strip().lower()
-    
-    # Ambil data terbaru langsung dari Google Sheets setiap kali ada pesan masuk
+
     df = get_sheets_data()
     if df is None or df.empty:
         return jsonify({"status": "success", "reply": "Maaf, gagal mengambil data dari Google Sheets."})
 
     response_text = "Maaf, arahan tidak dikenali. Taip 'bantuan' untuk melihat menu."
 
-    # 1. Cek Total Pembayaran Berdasarkan Bulan
+    # 1. Cek Total Pembayaran Berdasarkan Bulan (Contoh: Juni 2026)
     if "total" in message and "juni 2026" in message:
-        # Menyesuaikan dengan nama kolom di CSV/Sheets anda
         filtered = df[df['Month'].astype(str).str.contains('2026-06')]
         total_payment = pd.to_numeric(filtered['Total Payment Amount'].astype(str).str.replace(',', ''), errors='coerce').sum()
         response_text = f"Jumlah Bayaran (Total Payment Amount) untuk bulan Jun 2026 adalah: Rp {total_payment:,.2f}"
